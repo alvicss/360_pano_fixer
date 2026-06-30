@@ -28,9 +28,9 @@ python --version
 ## 步驟二：建立虛擬環境並安裝套件
 
 ```powershell
-cd C:\Users\你的帳號\Desktop\pano-tool
+Set-Location "專案根目錄"
 python -m venv .venv
-.venv\Scripts\activate
+. .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -65,13 +65,13 @@ python pano_fixer.py
 現在是 GUI 版，建議用 `--windowed`：
 
 ```powershell
-pyinstaller --onefile --windowed --name "全景圖修復工具" pano_fixer.py
+python -m PyInstaller --onefile --windowed --name "全景圖修復工具" pano_fixer.py
 ```
 
 或直接使用專案內的 spec：
 
 ```powershell
-pyinstaller "全景圖修復工具.spec"
+python -m PyInstaller "全景圖修復工具.spec"
 ```
 
 打包完成後，exe 會出現在：
