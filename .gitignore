@@ -1,0 +1,6 @@
+/.venv/
+/__pycache__/
+/build/
+/dist/
+/tmp_test/
+/tmp_test_run/
