@@ -44,9 +44,3 @@ dist\全景圖修復工具.exe
 ```powershell
 python pano_fixer.py --cli image1.jpg image2.png
 ```
-
-## 版本控制與公開
-
-- `.gitignore` 已排除虛擬環境、建置輸出、暫存檔與常見敏感檔案
-- 文件內不再使用個人電腦的私人絕對路徑範例
-- 建議只提交原始碼、`requirements.txt`、`spec`、文件與必要資產
