@@ -463,6 +463,12 @@ class PanoFixerApp(tk.Tk):
         self.geometry("1200x800")
         self.minsize(980, 760)
 
+        style = ttk.Style(self)
+        default_font = ("Microsoft JhengHei", 10)
+        style.configure(".", font=default_font)
+        style.configure("Treeview.Heading", font=("Microsoft JhengHei", 10, "bold"))
+        style.configure("TLabelframe.Label", font=("Microsoft JhengHei", 10, "bold"), foreground="#005A9E")
+
         self.file_items: dict[str, str] = {}
         self.processing_queue: list[str] = []
         self.batch_settings: PanoSettings | None = None
@@ -553,6 +559,13 @@ class PanoFixerApp(tk.Tk):
                 add="+",
             )
 
+        def _bind_all_children(widget: tk.Widget = inner) -> None:
+            _bind_mousewheel(widget)
+            for child in widget.winfo_children():
+                _bind_all_children(child)
+        
+        inner.bind_children_scroll = _bind_all_children
+
         _bind_mousewheel(inner)
         _bind_mousewheel(canvas)
         return inner
@@ -628,6 +641,11 @@ class PanoFixerApp(tk.Tk):
         self._build_metadata_tab(metadata_tab)
         self._build_log_tab(log_tab)
 
+        if hasattr(basic_tab, "bind_children_scroll"):
+            basic_tab.bind_children_scroll()
+        if hasattr(metadata_tab, "bind_children_scroll"):
+            metadata_tab.bind_children_scroll()
+
         footer = ttk.Frame(self, padding=(12, 0, 12, 12))
         footer.pack(fill="x")
         self.summary_var = tk.StringVar(value="尚未加入任何圖片")
@@ -650,14 +668,17 @@ class PanoFixerApp(tk.Tk):
         def add_tip(text: str, *widgets: tk.Widget) -> None:
             self._attach_tooltip(text, *widgets)
 
-        parent.columnconfigure(0, weight=0, minsize=120)
-        parent.columnconfigure(1, weight=0, minsize=260)
-        parent.columnconfigure(2, weight=1, minsize=260)
+        # 裁切與比例設定區塊
+        group_crop = ttk.LabelFrame(parent, text="裁切與比例設定", padding=(16, 12))
+        group_crop.pack(fill="x", padx=12, pady=(12, 6))
+        group_crop.columnconfigure(0, weight=0, minsize=140)
+        group_crop.columnconfigure(1, weight=0, minsize=260)
+        group_crop.columnconfigure(2, weight=1)
 
         row = 0
-        ratio_label = ttk.Label(parent, text="非 2:1 圖片")
+        ratio_label = ttk.Label(group_crop, text="非 2:1 圖片")
         ratio_label.grid(row=row, column=0, sticky="nw", pady=6)
-        action_frame = ttk.Frame(parent)
+        action_frame = ttk.Frame(group_crop)
         action_frame.grid(row=row, column=1, columnspan=2, sticky="w", pady=6)
         for action_key, action_label in NON_2TO1_ACTIONS.items():
             action_button = ttk.Radiobutton(
@@ -666,7 +687,7 @@ class PanoFixerApp(tk.Tk):
                 variable=self.non_2to1_action_var,
                 value=action_key,
             )
-            action_button.pack(anchor="w")
+            action_button.pack(anchor="w", pady=2)
             add_tip(
                 "決定圖片不是標準 2:1 時怎麼處理。建議保留預設的自動裁切，最容易讓平台正確辨識成 360 圖。",
                 action_button,
@@ -677,11 +698,11 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        tolerance_label = ttk.Label(parent, text="比例容差")
+        tolerance_label = ttk.Label(group_crop, text="比例容差")
         tolerance_label.grid(row=row, column=0, sticky="w", pady=6)
-        tolerance_entry = ttk.Entry(parent, textvariable=self.ratio_tolerance_var, width=10)
+        tolerance_entry = ttk.Entry(group_crop, textvariable=self.ratio_tolerance_var, width=12)
         tolerance_entry.grid(row=row, column=1, sticky="w", pady=6)
-        tolerance_hint = ttk.Label(parent, text="預設 0.01")
+        tolerance_hint = ttk.Label(group_crop, text="預設 0.01", foreground="#666666")
         tolerance_hint.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 0))
         add_tip(
             numeric_tooltip("接受圖片比例偏離 2:1 的容許值。數字越小越嚴格，0.01 代表相差 1% 以內視為可接受。", "0 以上"),
@@ -691,11 +712,11 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        anchor_x_label = ttk.Label(parent, text="裁切保留位置 X (%)")
+        anchor_x_label = ttk.Label(group_crop, text="裁切保留位置 X (%)")
         anchor_x_label.grid(row=row, column=0, sticky="w", pady=6)
-        anchor_x_entry = ttk.Entry(parent, textvariable=self.crop_anchor_x_var, width=10)
+        anchor_x_entry = ttk.Entry(group_crop, textvariable=self.crop_anchor_x_var, width=12)
         anchor_x_entry.grid(row=row, column=1, sticky="w", pady=6)
-        anchor_x_hint = ttk.Label(parent, text="0=靠左，50=置中，100=靠右")
+        anchor_x_hint = ttk.Label(group_crop, text="0=靠左，50=置中，100=靠右", foreground="#666666")
         anchor_x_hint.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 0))
         add_tip(
             numeric_tooltip("當圖片太寬需要左右裁切時，控制保留畫面的水平位置。50 代表從正中央裁。", "0 到 100"),
@@ -705,11 +726,11 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        anchor_y_label = ttk.Label(parent, text="裁切保留位置 Y (%)")
+        anchor_y_label = ttk.Label(group_crop, text="裁切保留位置 Y (%)")
         anchor_y_label.grid(row=row, column=0, sticky="w", pady=6)
-        anchor_y_entry = ttk.Entry(parent, textvariable=self.crop_anchor_y_var, width=10)
+        anchor_y_entry = ttk.Entry(group_crop, textvariable=self.crop_anchor_y_var, width=12)
         anchor_y_entry.grid(row=row, column=1, sticky="w", pady=6)
-        anchor_y_hint = ttk.Label(parent, text="0=靠上，50=置中，100=靠下")
+        anchor_y_hint = ttk.Label(group_crop, text="0=靠上，50=置中，100=靠下", foreground="#666666")
         anchor_y_hint.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 0))
         add_tip(
             numeric_tooltip("當圖片太高需要上下裁切時，控制保留畫面的垂直位置。50 代表從正中央裁。", "0 到 100"),
@@ -718,10 +739,17 @@ class PanoFixerApp(tk.Tk):
             anchor_y_hint,
         )
 
-        row += 1
-        output_mode_label = ttk.Label(parent, text="輸出位置")
+        # 輸出設定區塊
+        group_out = ttk.LabelFrame(parent, text="輸出設定", padding=(16, 12))
+        group_out.pack(fill="x", padx=12, pady=6)
+        group_out.columnconfigure(0, weight=0, minsize=140)
+        group_out.columnconfigure(1, weight=0, minsize=260)
+        group_out.columnconfigure(2, weight=1)
+
+        row = 0
+        output_mode_label = ttk.Label(group_out, text="輸出位置")
         output_mode_label.grid(row=row, column=0, sticky="w", pady=6)
-        output_mode_frame = ttk.Frame(parent)
+        output_mode_frame = ttk.Frame(group_out)
         output_mode_frame.grid(row=row, column=1, columnspan=2, sticky="w", pady=6)
         same_folder_button = ttk.Radiobutton(
             output_mode_frame,
@@ -740,31 +768,31 @@ class PanoFixerApp(tk.Tk):
         add_tip("選擇輸出檔要存回原圖旁邊，還是統一存到指定資料夾。批次整理時常用指定資料夾。", output_mode_label, same_folder_button, custom_folder_button)
 
         row += 1
-        output_dir_label = ttk.Label(parent, text="指定輸出資料夾")
+        output_dir_label = ttk.Label(group_out, text="指定輸出資料夾")
         output_dir_label.grid(row=row, column=0, sticky="w", pady=6)
-        output_dir_frame = ttk.Frame(parent)
+        output_dir_frame = ttk.Frame(group_out)
         output_dir_frame.grid(row=row, column=1, columnspan=2, sticky="w", pady=6)
-        self.output_dir_entry = ttk.Entry(output_dir_frame, textvariable=self.output_dir_var, width=34)
+        self.output_dir_entry = ttk.Entry(output_dir_frame, textvariable=self.output_dir_var, width=40)
         self.output_dir_entry.pack(side="left")
         output_dir_button = ttk.Button(output_dir_frame, text="瀏覽", command=self.pick_output_dir)
         output_dir_button.pack(side="left", padx=(10, 0))
         add_tip("只有在選擇『輸出到指定資料夾』時會使用這個路徑。程式會自動建立不存在的資料夾。", output_dir_label, self.output_dir_entry, output_dir_button)
 
         row += 1
-        suffix_label = ttk.Label(parent, text="檔名後綴")
+        suffix_label = ttk.Label(group_out, text="檔名後綴")
         suffix_label.grid(row=row, column=0, sticky="w", pady=6)
-        suffix_entry = ttk.Entry(parent, textvariable=self.filename_suffix_var, width=34)
+        suffix_entry = ttk.Entry(group_out, textvariable=self.filename_suffix_var, width=18)
         suffix_entry.grid(row=row, column=1, sticky="w", pady=6)
-        suffix_hint = ttk.Label(parent, text="預設 _360")
+        suffix_hint = ttk.Label(group_out, text="預設 _360", foreground="#666666")
         suffix_hint.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 0))
         add_tip("輸出檔名會接在原始檔名後面，例如 photo 變成 photo_360.jpg。", suffix_label, suffix_entry, suffix_hint)
 
         row += 1
-        quality_label = ttk.Label(parent, text="JPEG 品質")
+        quality_label = ttk.Label(group_out, text="JPEG 品質")
         quality_label.grid(row=row, column=0, sticky="w", pady=6)
-        quality_entry = ttk.Entry(parent, textvariable=self.jpeg_quality_var, width=14)
+        quality_entry = ttk.Entry(group_out, textvariable=self.jpeg_quality_var, width=12)
         quality_entry.grid(row=row, column=1, sticky="w", pady=6)
-        quality_hint = ttk.Label(parent, text="1 到 100，預設 95")
+        quality_hint = ttk.Label(group_out, text="1 到 100，預設 95", foreground="#666666")
         quality_hint.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 0))
         add_tip(
             numeric_tooltip("JPEG 壓縮品質。數字越高畫質越好、檔案越大。360 圖通常建議 90 到 95。", "1 到 100"),
@@ -774,64 +802,72 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        bg_label = ttk.Label(parent, text="透明背景補色")
+        overwrite_button = ttk.Checkbutton(group_out, text="若輸出檔已存在，直接覆蓋", variable=self.overwrite_existing_var)
+        overwrite_button.grid(row=row, column=0, columnspan=3, sticky="w", pady=(12, 6))
+        add_tip("開啟後，同名輸出檔會直接被新結果覆蓋。關閉時若檔案已存在，該筆會標記失敗避免誤蓋。", overwrite_button)
+
+        # 進階與其他區塊
+        group_adv = ttk.LabelFrame(parent, text="進階處理", padding=(16, 12))
+        group_adv.pack(fill="x", padx=12, pady=(6, 12))
+        group_adv.columnconfigure(0, weight=0, minsize=140)
+        group_adv.columnconfigure(1, weight=0, minsize=260)
+        group_adv.columnconfigure(2, weight=1)
+
+        row = 0
+        bg_label = ttk.Label(group_adv, text="透明背景補色")
         bg_label.grid(row=row, column=0, sticky="w", pady=6)
-        bg_action_frame = ttk.Frame(parent)
+        bg_action_frame = ttk.Frame(group_adv)
         bg_action_frame.grid(row=row, column=1, columnspan=2, sticky="w", pady=6)
         bg_entry = ttk.Entry(bg_action_frame, textvariable=self.background_color_var, width=14)
         bg_entry.pack(side="left")
-        bg_hint = ttk.Label(bg_action_frame, text="預設 #FFFFFF")
+        bg_hint = ttk.Label(bg_action_frame, text="預設 #FFFFFF", foreground="#666666")
         bg_hint.pack(side="left", padx=(12, 0))
         bg_pick_button = ttk.Button(bg_action_frame, text="選色", command=self.pick_background_color)
         bg_pick_button.pack(side="left", padx=(10, 0))
         add_tip("PNG/WebP 等含透明背景時，轉 JPG 之前會先用這個顏色補底。請填十六進位色碼，例如 #FFFFFF。", bg_label, bg_entry, bg_hint, bg_pick_button)
 
-        row += 1
-        overwrite_button = ttk.Checkbutton(parent, text="若輸出檔已存在，直接覆蓋", variable=self.overwrite_existing_var)
-        overwrite_button.grid(row=row, column=0, columnspan=3, sticky="w", pady=(12, 6))
-        add_tip("開啟後，同名輸出檔會直接被新結果覆蓋。關閉時若檔案已存在，該筆會標記失敗避免誤蓋。", overwrite_button)
-
-        row += 1
         hint = (
-            "預設值設計給不熟悉 360 metadata 的使用者：\n"
+            "💡 提示：預設值設計給不熟悉 360 metadata 的使用者：\n"
             "1. 非 2:1 直接自動裁切\n"
             "2. 輸出到原圖旁邊\n"
             "3. JPEG 品質 95\n"
             "4. metadata 只填安全且常用的欄位"
         )
-        ttk.Label(parent, text=hint, justify="left").grid(row=row, column=0, columnspan=3, sticky="w", pady=(12, 0))
+        hint_label = ttk.Label(parent, text=hint, justify="left", foreground="#005A9E")
+        hint_label.pack(fill="x", padx=16, pady=(0, 12))
 
     def _build_metadata_tab(self, parent: ttk.Frame) -> None:
         def add_tip(text: str, *widgets: tk.Widget) -> None:
             self._attach_tooltip(text, *widgets)
 
-        parent.columnconfigure(0, weight=0, minsize=280)
-        parent.columnconfigure(1, weight=0, minsize=170)
-        parent.columnconfigure(2, weight=0, minsize=290)
-        parent.columnconfigure(3, weight=0, minsize=170)
-        parent.columnconfigure(4, weight=1, minsize=40)
+        # 基本投影資訊區塊
+        group_basic = ttk.LabelFrame(parent, text="基本投影資訊", padding=(16, 12))
+        group_basic.pack(fill="x", padx=12, pady=(12, 6))
+        group_basic.columnconfigure(0, weight=0, minsize=240)
+        group_basic.columnconfigure(1, weight=0, minsize=180)
+        group_basic.columnconfigure(2, weight=1)
 
         row = 0
-        projection_label = ttk.Label(parent, text="ProjectionType（投影類型）")
+        projection_label = ttk.Label(group_basic, text="ProjectionType（投影類型）")
         projection_label.grid(row=row, column=0, sticky="w", pady=6)
-        projection_entry = ttk.Entry(parent, textvariable=self.projection_type_var, width=22)
+        projection_entry = ttk.Entry(group_basic, textvariable=self.projection_type_var, width=22)
         projection_entry.grid(row=row, column=1, sticky="w", pady=6)
-        projection_hint = ttk.Label(parent, text="一般保持 equirectangular")
-        projection_hint.grid(row=row, column=2, columnspan=2, sticky="w", pady=6, padx=(18, 0))
+        projection_hint = ttk.Label(group_basic, text="一般保持 equirectangular", foreground="#666666")
+        projection_hint.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
         add_tip("定義全景投影方式。大多數 360 平面展開圖都應保持 equirectangular，不建議隨意修改。", projection_label, projection_entry, projection_hint)
 
         row += 1
-        use_viewer_button = ttk.Checkbutton(parent, text="UsePanoramaViewer（全景檢視）", variable=self.use_panorama_viewer_var)
+        use_viewer_button = ttk.Checkbutton(group_basic, text="UsePanoramaViewer（全景檢視）", variable=self.use_panorama_viewer_var)
         use_viewer_button.grid(row=row, column=0, columnspan=2, sticky="w", pady=6)
-        exposure_lock_button = ttk.Checkbutton(parent, text="ExposureLockUsed（曝光鎖定）", variable=self.exposure_lock_used_var)
-        exposure_lock_button.grid(row=row, column=2, columnspan=2, sticky="w", pady=6, padx=(18, 0))
+        exposure_lock_button = ttk.Checkbutton(group_basic, text="ExposureLockUsed（曝光鎖定）", variable=self.exposure_lock_used_var)
+        exposure_lock_button.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
         add_tip("告訴支援平台這張圖應該用全景檢視器開啟。一般 360 圖建議維持勾選。", use_viewer_button)
         add_tip("表示拍攝來源是否鎖定曝光。對 AI 生成圖通常沒有明顯影響，可維持未勾選。", exposure_lock_button)
 
         row += 1
-        source_count_label = ttk.Label(parent, text="SourcePhotosCount（來源張數）")
+        source_count_label = ttk.Label(group_basic, text="SourcePhotosCount（來源張數）")
         source_count_label.grid(row=row, column=0, sticky="w", pady=6)
-        source_count_entry = ttk.Entry(parent, textvariable=self.source_photos_count_var, width=14)
+        source_count_entry = ttk.Entry(group_basic, textvariable=self.source_photos_count_var, width=14)
         source_count_entry.grid(row=row, column=1, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("原始來源照片數量。單張 AI 圖通常填 1；若來自多張拼接，可填實際數量。", "1 以上整數", allow_blank=True),
@@ -839,14 +875,22 @@ class PanoFixerApp(tk.Tk):
             source_count_entry,
         )
 
-        row += 1
-        pose_heading_label = ttk.Label(parent, text="PoseHeadingDegrees（全景朝向）")
+        # 全景視角與姿態區塊
+        group_pose = ttk.LabelFrame(parent, text="全景視角與姿態 (Pose & View)", padding=(16, 12))
+        group_pose.pack(fill="x", padx=12, pady=6)
+        group_pose.columnconfigure(0, weight=0, minsize=240)
+        group_pose.columnconfigure(1, weight=0, minsize=140)
+        group_pose.columnconfigure(2, weight=0, minsize=280)
+        group_pose.columnconfigure(3, weight=1)
+
+        row = 0
+        pose_heading_label = ttk.Label(group_pose, text="PoseHeadingDegrees（全景朝向）")
         pose_heading_label.grid(row=row, column=0, sticky="w", pady=6)
-        pose_heading_entry = ttk.Entry(parent, textvariable=self.pose_heading_var, width=14)
+        pose_heading_entry = ttk.Entry(group_pose, textvariable=self.pose_heading_var, width=14)
         pose_heading_entry.grid(row=row, column=1, sticky="w", pady=6)
-        initial_heading_label = ttk.Label(parent, text="InitialViewHeadingDegrees（初始水平視角）")
+        initial_heading_label = ttk.Label(group_pose, text="InitialViewHeadingDegrees（初始水平視角）")
         initial_heading_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        initial_heading_entry = ttk.Entry(parent, textvariable=self.initial_heading_var, width=14)
+        initial_heading_entry = ttk.Entry(group_pose, textvariable=self.initial_heading_var, width=14)
         initial_heading_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("整張全景的朝向角度，單位是度數。通常留白即可，只有想手動控制北向或主視角時才需要填。", "0 到 360", allow_blank=True),
@@ -860,13 +904,13 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        pose_pitch_label = ttk.Label(parent, text="PosePitchDegrees（全景俯仰）")
+        pose_pitch_label = ttk.Label(group_pose, text="PosePitchDegrees（全景俯仰）")
         pose_pitch_label.grid(row=row, column=0, sticky="w", pady=6)
-        pose_pitch_entry = ttk.Entry(parent, textvariable=self.pose_pitch_var, width=14)
+        pose_pitch_entry = ttk.Entry(group_pose, textvariable=self.pose_pitch_var, width=14)
         pose_pitch_entry.grid(row=row, column=1, sticky="w", pady=6)
-        initial_pitch_label = ttk.Label(parent, text="InitialViewPitchDegrees（初始上下視角）")
+        initial_pitch_label = ttk.Label(group_pose, text="InitialViewPitchDegrees（初始上下視角）")
         initial_pitch_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        initial_pitch_entry = ttk.Entry(parent, textvariable=self.initial_pitch_var, width=14)
+        initial_pitch_entry = ttk.Entry(group_pose, textvariable=self.initial_pitch_var, width=14)
         initial_pitch_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("整張全景的俯仰角。多數情況留白即可。", "-180 到 180", allow_blank=True),
@@ -880,13 +924,13 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        pose_roll_label = ttk.Label(parent, text="PoseRollDegrees（全景傾斜）")
+        pose_roll_label = ttk.Label(group_pose, text="PoseRollDegrees（全景傾斜）")
         pose_roll_label.grid(row=row, column=0, sticky="w", pady=6)
-        pose_roll_entry = ttk.Entry(parent, textvariable=self.pose_roll_var, width=14)
+        pose_roll_entry = ttk.Entry(group_pose, textvariable=self.pose_roll_var, width=14)
         pose_roll_entry.grid(row=row, column=1, sticky="w", pady=6)
-        initial_roll_label = ttk.Label(parent, text="InitialViewRollDegrees（初始畫面傾斜）")
+        initial_roll_label = ttk.Label(group_pose, text="InitialViewRollDegrees（初始畫面傾斜）")
         initial_roll_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        initial_roll_entry = ttk.Entry(parent, textvariable=self.initial_roll_var, width=14)
+        initial_roll_entry = ttk.Entry(group_pose, textvariable=self.initial_roll_var, width=14)
         initial_roll_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("整張全景的滾轉角度，用來校正水平線傾斜。多數情況留白即可。", "-180 到 180", allow_blank=True),
@@ -900,13 +944,13 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        initial_fov_label = ttk.Label(parent, text="InitialHorizontalFOVDegrees（初始視野）")
+        initial_fov_label = ttk.Label(group_pose, text="InitialHorizontalFOVDegrees（初始視野）")
         initial_fov_label.grid(row=row, column=0, sticky="w", pady=6)
-        initial_fov_entry = ttk.Entry(parent, textvariable=self.initial_fov_var, width=14)
+        initial_fov_entry = ttk.Entry(group_pose, textvariable=self.initial_fov_var, width=14)
         initial_fov_entry.grid(row=row, column=1, sticky="w", pady=6)
-        initial_dolly_label = ttk.Label(parent, text="InitialCameraDolly（鏡頭推進）")
+        initial_dolly_label = ttk.Label(group_pose, text="InitialCameraDolly（鏡頭推進）")
         initial_dolly_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        initial_dolly_entry = ttk.Entry(parent, textvariable=self.initial_dolly_var, width=14)
+        initial_dolly_entry = ttk.Entry(group_pose, textvariable=self.initial_dolly_var, width=14)
         initial_dolly_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("開啟全景時的水平視角大小。數字越大視野越廣，越小越像放大。", "大於 0 且小於或等於 360", allow_blank=True),
@@ -919,21 +963,26 @@ class PanoFixerApp(tk.Tk):
             initial_dolly_entry,
         )
 
-        row += 1
-        ttk.Separator(parent, orient="horizontal").grid(row=row, column=0, columnspan=5, sticky="ew", pady=12)
+        # 手動覆蓋尺寸與裁切 (Override) 區塊
+        group_override = ttk.LabelFrame(parent, text="手動覆蓋尺寸與裁切 (Override)", padding=(16, 12))
+        group_override.pack(fill="x", padx=12, pady=(6, 12))
+        group_override.columnconfigure(0, weight=0, minsize=80)
+        group_override.columnconfigure(1, weight=0, minsize=140)
+        group_override.columnconfigure(2, weight=0, minsize=80)
+        group_override.columnconfigure(3, weight=1)
 
-        row += 1
-        full_override_button = ttk.Checkbutton(parent, text="手動指定 FullPanoWidth/Height（完整全景尺寸）", variable=self.full_pano_override_var)
+        row = 0
+        full_override_button = ttk.Checkbutton(group_override, text="手動指定 FullPanoWidth/Height（完整全景尺寸）", variable=self.full_pano_override_var)
         full_override_button.grid(row=row, column=0, columnspan=4, sticky="w", pady=6)
 
         row += 1
-        full_width_label = ttk.Label(parent, text="Width")
-        full_width_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 0))
-        self.full_pano_width_entry = ttk.Entry(parent, textvariable=self.full_pano_width_var, width=12)
+        full_width_label = ttk.Label(group_override, text="Width", foreground="#555555")
+        full_width_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 12))
+        self.full_pano_width_entry = ttk.Entry(group_override, textvariable=self.full_pano_width_var, width=14)
         self.full_pano_width_entry.grid(row=row, column=1, sticky="w", pady=6)
-        full_height_label = ttk.Label(parent, text="Height")
-        full_height_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        self.full_pano_height_entry = ttk.Entry(parent, textvariable=self.full_pano_height_var, width=12)
+        full_height_label = ttk.Label(group_override, text="Height", foreground="#555555")
+        full_height_label.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 12))
+        self.full_pano_height_entry = ttk.Entry(group_override, textvariable=self.full_pano_height_var, width=14)
         self.full_pano_height_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("覆蓋整張完整全景的寬高。預設會直接使用輸出圖片尺寸，只有處理裁切來源時才較常需要改。", "1 以上整數", allow_blank=True),
@@ -945,17 +994,20 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        cropped_override_button = ttk.Checkbutton(parent, text="手動指定 CroppedAreaLeft/Top（裁切起點）", variable=self.cropped_area_override_var)
+        ttk.Separator(group_override, orient="horizontal").grid(row=row, column=0, columnspan=4, sticky="ew", pady=8)
+
+        row += 1
+        cropped_override_button = ttk.Checkbutton(group_override, text="手動指定 CroppedAreaLeft/Top（裁切起點）", variable=self.cropped_area_override_var)
         cropped_override_button.grid(row=row, column=0, columnspan=4, sticky="w", pady=6)
 
         row += 1
-        cropped_left_label = ttk.Label(parent, text="Left")
-        cropped_left_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 0))
-        self.cropped_area_left_entry = ttk.Entry(parent, textvariable=self.cropped_area_left_var, width=12)
+        cropped_left_label = ttk.Label(group_override, text="Left", foreground="#555555")
+        cropped_left_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 12))
+        self.cropped_area_left_entry = ttk.Entry(group_override, textvariable=self.cropped_area_left_var, width=14)
         self.cropped_area_left_entry.grid(row=row, column=1, sticky="w", pady=6)
-        cropped_top_label = ttk.Label(parent, text="Top")
-        cropped_top_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        self.cropped_area_top_entry = ttk.Entry(parent, textvariable=self.cropped_area_top_var, width=12)
+        cropped_top_label = ttk.Label(group_override, text="Top", foreground="#555555")
+        cropped_top_label.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 12))
+        self.cropped_area_top_entry = ttk.Entry(group_override, textvariable=self.cropped_area_top_var, width=14)
         self.cropped_area_top_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("手動指定裁切區塊在完整全景中的左上角座標。一般單張輸出預設 0,0 就夠了。", "0 以上整數"),
@@ -967,19 +1019,22 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
+        ttk.Separator(group_override, orient="horizontal").grid(row=row, column=0, columnspan=4, sticky="ew", pady=8)
+
+        row += 1
         largest_override_button = ttk.Checkbutton(
-            parent, text="手動指定 LargestValidInteriorRect（有效區域）", variable=self.largest_rect_override_var
+            group_override, text="手動指定 LargestValidInteriorRect（有效區域）", variable=self.largest_rect_override_var
         )
         largest_override_button.grid(row=row, column=0, columnspan=4, sticky="w", pady=6)
 
         row += 1
-        largest_left_label = ttk.Label(parent, text="Left")
-        largest_left_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 0))
-        self.largest_rect_left_entry = ttk.Entry(parent, textvariable=self.largest_rect_left_var, width=12)
+        largest_left_label = ttk.Label(group_override, text="Left", foreground="#555555")
+        largest_left_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 12))
+        self.largest_rect_left_entry = ttk.Entry(group_override, textvariable=self.largest_rect_left_var, width=14)
         self.largest_rect_left_entry.grid(row=row, column=1, sticky="w", pady=6)
-        largest_top_label = ttk.Label(parent, text="Top")
-        largest_top_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        self.largest_rect_top_entry = ttk.Entry(parent, textvariable=self.largest_rect_top_var, width=12)
+        largest_top_label = ttk.Label(group_override, text="Top", foreground="#555555")
+        largest_top_label.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 12))
+        self.largest_rect_top_entry = ttk.Entry(group_override, textvariable=self.largest_rect_top_var, width=14)
         self.largest_rect_top_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("標示畫面中有效矩形區域的位置與大小。若圖片沒有黑邊或遮罩，通常不必手動指定。", "0 以上整數"),
@@ -991,13 +1046,13 @@ class PanoFixerApp(tk.Tk):
         )
 
         row += 1
-        largest_width_label = ttk.Label(parent, text="Width")
-        largest_width_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 0))
-        self.largest_rect_width_entry = ttk.Entry(parent, textvariable=self.largest_rect_width_var, width=12)
+        largest_width_label = ttk.Label(group_override, text="Width", foreground="#555555")
+        largest_width_label.grid(row=row, column=0, sticky="w", pady=6, padx=(24, 12))
+        self.largest_rect_width_entry = ttk.Entry(group_override, textvariable=self.largest_rect_width_var, width=14)
         self.largest_rect_width_entry.grid(row=row, column=1, sticky="w", pady=6)
-        largest_height_label = ttk.Label(parent, text="Height")
-        largest_height_label.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        self.largest_rect_height_entry = ttk.Entry(parent, textvariable=self.largest_rect_height_var, width=12)
+        largest_height_label = ttk.Label(group_override, text="Height", foreground="#555555")
+        largest_height_label.grid(row=row, column=2, sticky="w", pady=6, padx=(12, 12))
+        self.largest_rect_height_entry = ttk.Entry(group_override, textvariable=self.largest_rect_height_var, width=14)
         self.largest_rect_height_entry.grid(row=row, column=3, sticky="w", pady=6)
         add_tip(
             numeric_tooltip("有效矩形區域的上方偏移量。通常保持自動值即可。", "0 以上整數"),
@@ -1012,14 +1067,14 @@ class PanoFixerApp(tk.Tk):
             self.largest_rect_height_entry,
         )
 
-        row += 1
         note = (
-            "進階欄位全部都有預設狀態：\n"
+            "💡 進階欄位全部都有預設狀態：\n"
             "1. 空白代表不額外寫入，避免給新手多餘負擔\n"
             "2. 未勾選 override 時，自動用輸出圖片尺寸與左上角 0,0\n"
             "3. 除非你知道自己在做什麼，否則建議保持預設"
         )
-        ttk.Label(parent, text=note, justify="left").grid(row=row, column=0, columnspan=5, sticky="w", pady=(14, 0))
+        note_label = ttk.Label(parent, text=note, justify="left", foreground="#005A9E")
+        note_label.pack(fill="x", padx=16, pady=(0, 12))
 
     def _build_log_tab(self, parent: ttk.Frame) -> None:
         self.log_text = tk.Text(parent, wrap="word", height=24)
