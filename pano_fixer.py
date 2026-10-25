@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import struct
 import sys
+import webbrowser
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
@@ -32,6 +33,7 @@ from PIL import Image, ImageColor, UnidentifiedImageError
 
 
 SUPPORTED_INPUT_EXT = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif")
+ABOUT_BLOG_URL = "https://halfmemo.com/"
 NON_2TO1_ACTIONS = {
     "crop": "自動裁切成 2:1",
     "skip": "跳過這張圖",
@@ -583,10 +585,13 @@ class PanoFixerApp(tk.Tk):
         clear_button.pack(side="left", padx=(0, 16))
         recursive_button = ttk.Checkbutton(toolbar, text="加入資料夾時含子資料夾", variable=self.recursive_scan_var)
         recursive_button.pack(side="left")
+        about_button = ttk.Button(toolbar, text="關於", command=self.show_about_dialog)
+        about_button.pack(side="right")
         self._attach_tooltip("一次加入多張圖片到待處理清單。", add_files_button)
         self._attach_tooltip("把整個資料夾內的圖片加入清單，可配合右側勾選一併掃描子資料夾。", add_folder_button, recursive_button)
         self._attach_tooltip("把目前清單中選取的項目移除，不會刪除硬碟上的原始圖片。", remove_button)
         self._attach_tooltip("清空待處理清單，不會刪除硬碟上的原始圖片。", clear_button)
+        self._attach_tooltip("顯示工具簡介與作者網站。", about_button)
 
         content_frame = ttk.Frame(self, padding=(12, 0, 12, 12))
         content_frame.pack(fill="both", expand=True)
@@ -663,6 +668,75 @@ class PanoFixerApp(tk.Tk):
         self._bind_variable_traces()
         self._toggle_output_dir_state()
         self._toggle_metadata_override_states()
+
+    def show_about_dialog(self) -> None:
+        dialog = tk.Toplevel(self)
+        dialog.title("關於")
+        dialog.transient(self)
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        container = tk.Frame(dialog, bg="#D8DDE3", padx=14, pady=14)
+        container.pack(fill="both", expand=True)
+
+        card = tk.Frame(container, bg="#F1F3F6", padx=26, pady=24)
+        card.pack(fill="both", expand=True)
+
+        title_label = tk.Label(
+            card,
+            text="360 全景圖工具",
+            font=("Microsoft JhengHei", 18, "bold"),
+            bg="#F1F3F6",
+            anchor="w",
+            justify="left",
+        )
+        title_label.pack(anchor="w")
+
+        description_label = tk.Label(
+            card,
+            text=(
+                "集中整理一般圖片並補上 360 全景 metadata 的小工具。\n\n"
+                "支援批次加入圖片或資料夾，自動檢查 2:1 比例，\n"
+                "可依設定裁切、轉成 JPEG，並寫入 GPano metadata，\n"
+                "讓輸出結果更容易被平台辨識為全景圖。"
+            ),
+            font=("Microsoft JhengHei", 11),
+            bg="#F1F3F6",
+            anchor="w",
+            justify="left",
+            wraplength=460,
+        )
+        description_label.pack(anchor="w", pady=(16, 20))
+
+        blog_frame = tk.Frame(card, bg="#F1F3F6")
+        blog_frame.pack(anchor="w")
+        tk.Label(
+            blog_frame,
+            text="作者網站：",
+            font=("Microsoft JhengHei", 11),
+            bg="#F1F3F6",
+        ).pack(side="left")
+
+        blog_link = tk.Label(
+            blog_frame,
+            text="半桶水的 AI 筆記",
+            font=("Microsoft JhengHei", 11, "underline"),
+            fg="#0563C1",
+            bg="#F1F3F6",
+            cursor="hand2",
+        )
+        blog_link.pack(side="left")
+        blog_link.bind("<Button-1>", lambda _event: webbrowser.open_new_tab(ABOUT_BLOG_URL))
+
+        close_button = ttk.Button(container, text="關閉", command=dialog.destroy)
+        close_button.pack(anchor="e", pady=(12, 0))
+
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        x = self.winfo_rootx() + max((self.winfo_width() - width) // 2, 0)
+        y = self.winfo_rooty() + max((self.winfo_height() - height) // 2, 0)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
 
     def _build_basic_tab(self, parent: ttk.Frame) -> None:
         def add_tip(text: str, *widgets: tk.Widget) -> None:
@@ -854,14 +928,30 @@ class PanoFixerApp(tk.Tk):
         projection_entry.grid(row=row, column=1, sticky="w", pady=6)
         projection_hint = ttk.Label(group_basic, text="一般保持 equirectangular", foreground="#666666")
         projection_hint.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        add_tip("定義全景投影方式。大多數 360 平面展開圖都應保持 equirectangular，不建議隨意修改。", projection_label, projection_entry, projection_hint)
+        add_tip(
+            "可調整的基本辨識欄位包含：\n"
+            "1. ProjectionType：幾乎都應填 equirectangular\n"
+            "2. UsePanoramaViewer：一般保持勾選 True\n"
+            "3. SourcePhotosCount：單張 AI 圖或單張展開圖通常填 1\n"
+            "4. ExposureLockUsed：通常維持未勾選即可\n\n"
+            "強烈建議維持目前預設。想讓平台把 2:1 的全景圖辨識成 360，最重要的就是 "
+            "ProjectionType=equirectangular，並保留 UsePanoramaViewer=True；亂改反而更容易失敗。"
+            "這些欄位是幫助平台辨識 360，不是把普通照片直接生成成 360。",
+            projection_label,
+            projection_entry,
+            projection_hint,
+        )
 
         row += 1
         use_viewer_button = ttk.Checkbutton(group_basic, text="UsePanoramaViewer（全景檢視）", variable=self.use_panorama_viewer_var)
         use_viewer_button.grid(row=row, column=0, columnspan=2, sticky="w", pady=6)
         exposure_lock_button = ttk.Checkbutton(group_basic, text="ExposureLockUsed（曝光鎖定）", variable=self.exposure_lock_used_var)
         exposure_lock_button.grid(row=row, column=2, sticky="w", pady=6, padx=(18, 0))
-        add_tip("告訴支援平台這張圖應該用全景檢視器開啟。一般 360 圖建議維持勾選。", use_viewer_button)
+        add_tip(
+            "告訴支援平台這張圖應該用全景檢視器開啟。一般 360 圖強烈建議維持勾選，"
+            "這通常會比關閉更容易被當成 360 全景內容辨識。",
+            use_viewer_button,
+        )
         add_tip("表示拍攝來源是否鎖定曝光。對 AI 生成圖通常沒有明顯影響，可維持未勾選。", exposure_lock_button)
 
         row += 1
@@ -870,7 +960,12 @@ class PanoFixerApp(tk.Tk):
         source_count_entry = ttk.Entry(group_basic, textvariable=self.source_photos_count_var, width=14)
         source_count_entry.grid(row=row, column=1, sticky="w", pady=6)
         add_tip(
-            numeric_tooltip("原始來源照片數量。單張 AI 圖通常填 1；若來自多張拼接，可填實際數量。", "1 以上整數", allow_blank=True),
+            numeric_tooltip(
+                "原始來源照片數量。單張 AI 圖、單張平面展開圖通常填 1；若真的來自多張拼接，再填實際數量。"
+                " 這欄不是必要核心條件，維持目前預設最穩定。",
+                "1 以上整數",
+                allow_blank=True,
+            ),
             source_count_label,
             source_count_entry,
         )
@@ -1069,9 +1164,10 @@ class PanoFixerApp(tk.Tk):
 
         note = (
             "💡 進階欄位全部都有預設狀態：\n"
-            "1. 空白代表不額外寫入，避免給新手多餘負擔\n"
-            "2. 未勾選 override 時，自動用輸出圖片尺寸與左上角 0,0\n"
-            "3. 除非你知道自己在做什麼，否則建議保持預設"
+            "1. 要讓平台辨識成 360，最重要的是 2:1 圖片加上 ProjectionType=equirectangular\n"
+            "2. UsePanoramaViewer 保持勾選，通常最容易被當成全景內容\n"
+            "3. 其他欄位多半是微調視角或覆蓋尺寸，非必要時不要改\n"
+            "4. 這些 metadata 是幫助辨識，不是把普通圖片直接變成 360"
         )
         note_label = ttk.Label(parent, text=note, justify="left", foreground="#005A9E")
         note_label.pack(fill="x", padx=16, pady=(0, 12))
