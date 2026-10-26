@@ -31,3 +31,6 @@
 /.vscode/
 /Thumbs.db
 /.DS_Store
+
+# 測試用範例圖（ChatGPT 產的原圖與修好的 360 版）。這是公開 repo，範例圖只放本機。
+samples/
