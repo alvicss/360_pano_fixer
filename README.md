@@ -47,6 +47,6 @@ python pano_fixer.py --cli image1.jpg image2.png
 
 ## 作品圖與分享預覽（2026-10-26）
 
-- 作品圖：`cover.jpg`（1200×630），由 Codex 用 halfmemo-pencil-og-safe-zone 作品模式產生（色鉛筆、無標題）；部落格放一份 960×504 的縮小版 `public/images/works/360-pano-fixer.jpg`。
-- 這個作品是 Windows 程式、不在子站上：lab 站首頁卡片的圖放在 lab-portal 的 `site/assets/covers/360-pano-fixer.jpg`。沒有網頁，所以沒有分享預覽設定。
-- 作品圖要重做：在 `D:\ASTRO` 開 Codex，貼「用 $halfmemo-pencil-og-safe-zone 產作品圖：D:\workshop\lab\360-pano-fixer」，好了跟 Claude 說「XX 圖好了」。
+- 作品圖：`cover.jpg`（1200×630，色鉛筆、無標題），部落格與 lab 站的作品卡片都用它（部落格放 960×504 的縮小版）。
+- 這個作品是 Windows 程式、沒有網頁，所以沒有分享預覽設定。
+- 作品圖要重做：跟 Claude 說「重做 360 全景圖工具的圖」。
